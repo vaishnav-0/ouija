@@ -1,90 +1,126 @@
-import os
 import tempfile
-import pyaudio
 import wave
+
+import numpy as np
+import pyaudio
+import torch
 import whisper
 from pyannote.audio import Pipeline
-import torch
 
 
-def record_and_detect_speech(vad_pipeline):
-    """Record audio from the microphone and use VAD to detect end of speech."""
+class Audio:
     CHUNK = 1024
     FORMAT = pyaudio.paInt16
     CHANNELS = 1
     RATE = 16000
-    p = pyaudio.PyAudio()
-    stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
 
-    frames = []
-    speech_detected = False
-    silence_counter = 0
+    def __init__(self, frame_rate=1, silent_frames=5):
+        vad_pipeline = Pipeline.from_pretrained("pyannote/voice-activity-detection",
+                                                use_auth_token="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")
+        vad_pipeline.to(torch.device("cuda"))
 
-    print("* recording")
+        model = whisper.load_model("small.en", device="cuda")
 
-    while True:
-        data = stream.read(CHUNK)
-        frames.append(data)
+        self.vad_pipeline = vad_pipeline
+        self.model = model
+        self.frame_rate = 1 // frame_rate
+        self.silent_frames = silent_frames
 
-        # Check for speech
-        is_speech = vad_pipeline(
-            {"waveform": torch.tensor(wave.struct.unpack("%dh" % (len(data) // 2), data), dtype=torch.float32),
-             "sample_rate": RATE}).get("speech")
+        self.audio = pyaudio.PyAudio()
+        self.stream = self._get_stream()
 
-        if is_speech:
-            speech_detected = True
-            silence_counter = 0
-        elif speech_detected:
-            silence_counter += 1
-            if silence_counter > 20:  # Adjust as needed
+        self.pre_recording = None
+        self.post_recording = None
+        self.while_silent = None
+
+    def _get_stream(self):
+        return self.audio.open(format=self.FORMAT,
+                               channels=self.CHANNELS,
+                               rate=self.RATE,
+                               input=True,
+                               frames_per_buffer=self.CHUNK)
+
+    def _save_to_temp(self, frames):
+        temp = tempfile.mktemp(suffix=".wav")
+        with wave.open(temp, 'wb') as wf:
+            wf.setnchannels(self.CHANNELS)
+            wf.setsampwidth(self.audio.get_sample_size(self.FORMAT))
+            wf.setframerate(self.RATE)
+            wf.writeframes(b''.join(frames))
+
+        return temp
+
+    def _record_and_detect_speech(self):
+        """Record audio from the microphone and use VAD to detect end of speech."""
+
+        self.stream.start_stream()
+
+        frames = []
+        speech_detected = False
+        silence_counter = 0
+
+        if self.pre_recording:
+            self.pre_recording()
+
+        while True:
+            data = self.stream.read(self.RATE * self.frame_rate)
+            frames.append(data)
+
+            # Convert data to numpy array
+            frame = np.frombuffer(data, dtype=np.int16)
+
+            # Check for speech (reshape frame to match Pyannote's expected format)
+            vad_result = self.vad_pipeline({
+                "waveform": torch.tensor(frame, dtype=torch.float32).unsqueeze(0),
+                "sample_rate": self.RATE
+            })
+
+            # Pyannote VAD returns an Annotation object where speech segments are marked
+            is_speech = False
+            for _ in vad_result.itertracks(yield_label=False):
+                is_speech = True
                 break
 
-    print("* done recording")
+            if is_speech:
+                speech_detected = True
+                silence_counter = 0
+            elif speech_detected:
+                silence_counter += 1
+                if silence_counter > self.silent_frames:
+                    break
 
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
+            if not is_speech and self.while_silent:
+                self.while_silent(speech_detected)
 
-    # Save to temporary file
-    WAVE_OUTPUT_FILENAME = tempfile.mktemp(suffix=".wav")
-    with wave.open(WAVE_OUTPUT_FILENAME, 'wb') as wf:
-        wf.setnchannels(CHANNELS)
-        wf.setsampwidth(p.get_sample_size(FORMAT))
-        wf.setframerate(RATE)
-        wf.writeframes(b''.join(frames))
+        if self.post_recording:
+            self.post_recording()
 
-    return WAVE_OUTPUT_FILENAME
+        self.stream.stop_stream()
+
+        return self._save_to_temp(frames)
+
+    def get_transcript(self):
+        audio_file = self._record_and_detect_speech()
+        result = self.model.transcribe(audio_file)
+
+        return result["text"]
+
+    def set_pre_recording(self, func):
+        self.pre_recording = func
+
+    def set_post_recording(self, func):
+        self.post_recording = func
+
+    def set_while_silent(self, func):
+        self.while_silent = func
 
 
-def transcribe_audio(model, file_path):
-    """Transcribe the audio file using Whisper."""
-    result = model.transcribe(file_path)
-    return result["text"]
+if __name__ == '__main__':
+    audio = Audio()
 
-
-def speech_to_text_generator():
-    vad_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1",
-                                            use_auth_token="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")
-    vad_pipeline.to(torch.device("cuda"))
-
-    model = whisper.load_model("small.en", device="cuda")
+    audio.set_pre_recording(lambda: print("Recording..."))
+    audio.set_post_recording(lambda: print("Done recording"))
+    audio.set_while_silent(lambda speech_detected: print("Silence" if not speech_detected else "Pause"))
 
     while True:
-        print("Please speak...")
-
-        # Record the speech and detect the end of speech
-        audio_file = record_and_detect_speech(vad_pipeline)
-
-        # Transcribe using Whisper
-        try:
-            sentence = transcribe_audio(model, audio_file)
-            yield sentence
-        finally:
-            # Clean up the temporary audio file
-            os.remove(audio_file)
-
-
-# Using the generator
-generator = speech_to_text_generator()
-for _ in range(3):  # Example: getting 3 sentences
-    print(next(generator))
+        print(audio.get_transcript())
