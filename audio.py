@@ -63,7 +63,7 @@ class Audio:
             self.pre_recording()
 
         while True:
-            data = self.stream.read(self.RATE * self.frame_rate)
+            data = self.stream.read(int(self.RATE * self.frame_rate))
             frames.append(data)
 
             # Convert data to numpy array
@@ -116,7 +116,7 @@ class Audio:
 
 
 if __name__ == '__main__':
-    audio = Audio()
+    audio = Audio(silent_frames=2)
 
     audio.set_pre_recording(lambda: print("Recording..."))
     audio.set_post_recording(lambda: print("Done recording"))
