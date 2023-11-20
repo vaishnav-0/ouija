@@ -15,8 +15,8 @@ class Audio:
     RATE = 16000
 
     def __init__(self, frame_rate=1, silent_frames=5):
-        vad_pipeline = Pipeline.from_pretrained("pyannote/voice-activity-detection",
-                                                use_auth_token="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")
+        vad_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1",
+                                                use_auth_token="the key")
         vad_pipeline.to(torch.device("cuda"))
 
         model = whisper.load_model("small.en", device="cuda")
