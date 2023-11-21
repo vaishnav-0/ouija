@@ -1,12 +1,13 @@
 from litellm import completion
 
+from constants import BASE_PROMPT
+
 
 class Mistral:
     def __init__(self, ghost, model="ollama/mistral:7b-instruct"):
         with open(ghost) as f:
             self.system_prompt = f.read()
-            self.system_prompt += ("Your responses should be cryptic, chilling, and limited to characters found on a "
-                                   "traditional Ouija board (letters A-Z, numbers 0-9, 'Yes', 'No', and 'Goodbye')")
+            self.system_prompt += BASE_PROMPT
 
         self.model = model
         self.messages = [
@@ -27,12 +28,3 @@ class Mistral:
         self.messages.append({"content": text, "role": agent})
 
         return text
-
-
-if __name__ == '__main__':
-    mistral = Mistral("ghosts/1.txt")
-
-    while True:
-        question = input("Question: ")
-        answer = mistral(question)
-        print(answer)
