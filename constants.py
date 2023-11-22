@@ -1,7 +1,8 @@
 BASE_PROMPT = (
     "Your response should be at most 3 words and should contain only letters and numbers. You can say yes "
     "to indicate affirmation and no to indicate negation. Your response should be spot on answer to the question and "
-    "should not include any additional information."
+    "should not include any additional information.If asked about any person restrict your answer to most important "
+    "term that describes the person."
 )
 
 LETTER_MAP = {

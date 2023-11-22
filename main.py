@@ -8,12 +8,13 @@ from audio import Audio
 from constants import LETTER_MAP
 from mistral import Mistral
 
-ser = serial.Serial('COM3', 9600, timeout=1)
+# ser = serial.Serial('COM3', 9600, timeout=1)
 
 
 def send_to_serial(text):
-    ser.write(text.encode())
-    ser.flush()
+    # ser.write(text.encode())
+    # ser.flush()
+    pass
 
 
 def text_to_coords(answer):

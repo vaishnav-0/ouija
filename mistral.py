@@ -28,3 +28,12 @@ class Mistral:
         self.messages.append({"content": text, "role": agent})
 
         return text
+
+
+if __name__ == '__main__':
+    mistral = Mistral("ghosts/Caligula.txt")
+
+    while True:
+        q = input("Question: ")
+        a = mistral(q)
+        print("Answer:", a)
