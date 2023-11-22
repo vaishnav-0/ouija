@@ -16,6 +16,8 @@ def send_to_serial(text):
     if ser is None:
         return
 
+    print("To arduino:", text)
+
     ser.write(text.encode())
     ser.flush()
 
