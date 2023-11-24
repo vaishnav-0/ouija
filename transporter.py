@@ -63,5 +63,7 @@ if __name__ == "__main__":
         txt = input("Enter coords/text")
         if txt.startswith(":"):
             transporter.write(f"{transporter.COMMANDS['go']} {txt[1:]}")
+        elif txt.startswith("!"):
+            transporter.write(txt[1:].upper())
         else:
             transporter.write_as_coords(txt)
