@@ -389,12 +389,10 @@ void resetMotor(int idx){
       motorPos1 = 0;
       break;
     case 2:
-      tmp = motorSpeed2;
-      motorSpeed2 = MOTOR_SLOW;
+
       ResetMotor2(motor1Limit2, ANTICLOCKWISE);
       Serial.print("Moved:");
       Serial.println(motorPos2);
-      motorSpeed2 = tmp;
       motorPos2 = 0;
       break;
    }
