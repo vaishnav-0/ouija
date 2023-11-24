@@ -22,7 +22,7 @@ class Transporter:
     def read_line(self):
         return self.serial.readline().decode().strip()
 
-    def wait_for_char(self, char, timeout_seconds=30):
+    def wait_for_char(self, char, timeout_seconds=180):
         start_time = time.time()
 
         while True:
@@ -65,4 +65,4 @@ if __name__ == "__main__":
         elif txt.startswith("!"):
             transporter.write(txt[1:].upper())
         else:
-            print("Nokki adikke")
+            transporter.write_as_coords(txt)
