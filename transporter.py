@@ -9,15 +9,20 @@ class Transporter:
     COMMANDS = {
         "go": "GO",
         "reset": "RESET",
-        "spin": "SPIN"
+        "spin": "CIRCLE"
     }
 
     def __init__(self, port="COM3", baud=115200):
         self.serial = serial.Serial(port, baud, timeout=1)
 
-    def write(self, text):
+    def write(self, text, flush=True):
+        print(f"Writing: {text}")
         self.serial.write(f"{text}\n".encode())
-        self.serial.flush()
+        if flush:
+            self.serial.flush()
+
+    def write_all(self, texts):
+        self.write("\n".join(texts))
 
     def read_line(self):
         return self.serial.readline().decode().strip()
@@ -33,7 +38,6 @@ class Transporter:
 
             if self.serial.in_waiting > 0:
                 line = self.read_line()
-                print(f"Received from Arduino: {line}")
                 if char in line:
                     print(f"Received {char} from Arduino")
                     break
@@ -43,15 +47,18 @@ class Transporter:
         text = "".join([c for c in text if c.isalnum()])
         text = text.upper()
 
+        if text == "":
+            text = "NO"
+
         if text in LETTER_MAP:
             return [LETTER_MAP[text]]
 
         return [LETTER_MAP[c] for c in text]
 
     def write_as_coords(self, text):
-        for coord in self._get_cords(text):
-            self.write(f"{self.COMMANDS['go']} {coord[0]} {coord[1]}")
+        to_write = [f"{self.COMMANDS['go']} {coord[0]} {coord[1]}" for coord in self._get_cords(text)]
 
+        self.write_all(to_write)
         self.wait_for_char("*")
 
 

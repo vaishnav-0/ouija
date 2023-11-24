@@ -22,8 +22,19 @@ class Mistral:
             api_base="http://localhost:11434"
         )
 
-        text = answer["choices"][0].message.content
+        text = answer["choices"][0].message.content.split("\n")[0]
         agent = answer["choices"][0].message.role
+
+        if ":" in text:
+            text = text.split(":")[-1]
+
+        if len(text.split(" ")) > 2:
+            text = " ".join(text.split(" ")[:2])
+
+        text = text.strip()
+
+        if text == "":
+            text = "No"
 
         self.messages.append({"content": text, "role": agent})
 
