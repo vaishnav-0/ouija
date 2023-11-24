@@ -54,3 +54,14 @@ class Transporter:
             self.write(f"{self.COMMANDS['go']} {coord[0]} {coord[1]}")
 
         self.wait_for_char("*")
+
+
+if __name__ == "__main__":
+    transporter = Transporter()
+
+    while True:
+        txt = input("Enter coords/text")
+        if txt.startswith(":"):
+            transporter.write(f"{transporter.COMMANDS['go']} {txt[1:]}")
+        else:
+            transporter.write_as_coords(txt)
