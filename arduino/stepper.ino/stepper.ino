@@ -34,12 +34,10 @@ const int resetPin2 = 11;
 const int dirPin2 = 4;
 const int stepPin2 = 5;
 
-const int motor1Factor = 7.7; //calculate accoding to design
-const int motor1Limit1 = 1000000l;//.(int)(motor1Factor/2)*stepsPerRevolution;
+const int motor1Limit1 = 800;//.(int)(motor1Factor/2)*stepsPerRevolution;
 int motorPos1 = 0;
-motorSpeed motorSpeed1 = MOTOR_MEDIUM;
+motorSpeed motorSpeed1 = MOTOR_SLOW;
 
-const int motor2Factor = 1; //calculate accoding to design
 const int motor1Limit2 = 4300;//motor2Factor*stepsPerRevolution;
 int motorPos2 = 0;
 motorSpeed motorSpeed2 = MOTOR_MEDIUM;
@@ -62,6 +60,9 @@ void setup()
   pinMode(resetPin2, INPUT_PULLUP);
 
 
+  resetMotor(1);
+  resetMotor(2);
+
 }
 void loop()
 {
@@ -79,8 +80,6 @@ void loop()
     fillBuffer();
 
   }
-
-
 
 }
 
@@ -126,10 +125,6 @@ bool isBufferFull() {
 bool isBufferEmpty() {
   return head == tail;
 }
-
-
-
-
 
 
 int readCommandBuffer(char *buffer, int maxLength) {
@@ -184,15 +179,22 @@ void processCommand(char* command) {
    char* cmd = tkns[0];
 
   if (strcmp(cmd, "CIRCLE") == 0) {
+    int center = motor1Limit2/2;
+    goTogether(center, 0); // 0deg
+    goTogether(0, 450); //90deg
+    goTogether(center, 900); //180deg
+    goTogether(motor1Limit2, 450); //90deg
+    goTogether(center, 0); // 0deg
+
 
 
   }
   //Not tested
   else if (strcmp(cmd, "GO") == 0) {
        int r = atoi(tkns[1]);
-       float theta = atof(tkns[2]);
+       int theta_steps = atoi(tkns[2]);
 
-       goToAngleMotor1(theta);
+       goToAngleMotor1(theta_steps);
        goToPositionMotor2(r);
 
 
@@ -280,10 +282,19 @@ void processCommand(char* command) {
 
 }
 
+void goTogether(int r, int theta){
+  int stepsR = getRotSteps(theta);
+  int direcR = getRotDir(theta);
+  int stepsL = getLinearSteps(r);
+  int direcL = getLinearDir(r);
+  runTwoMotors(stepsR, direcR, stepsL, direcL);
+
+}
+
 
 void goToAngleMotor1(float theta){
-  int stepsR = getRotSteps(theta, motor1Factor);
-  int direcR = getRotDir(theta, motor1Factor);
+  int stepsR = getRotSteps(theta);
+  int direcR = getRotDir(theta);
   turnMotor1(stepsR, direcR);
 }
 
@@ -330,13 +341,13 @@ int getLinearDir(int pos){
 }
 
 
-int getRotSteps(float theta, int factor){
-    int diff = (int) (theta/1.8)*factor - motorPos1;
+int getRotSteps(int steps){
+    int diff = steps - motorPos1;
     return diff<0?-diff:diff;
 }
 
-int getRotDir(float theta, int factor){
-    int diff = (int) (theta/1.8)*factor - motorPos1;
+int getRotDir(int steps){
+    int diff = steps - motorPos1;
     return diff<0?ANTICLOCKWISE: CLOCKWISE;
 }
 
