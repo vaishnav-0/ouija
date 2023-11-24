@@ -34,16 +34,16 @@ const int resetPin2 = 11;
 const int dirPin2 = 4;
 const int stepPin2 = 5;
 
-const int motor1Limit1 = 800;//.(int)(motor1Factor/2)*stepsPerRevolution;
+const int motor1Limit1 = 925;//.(int)(motor1Factor/2)*stepsPerRevolution;
 int motorPos1 = 0;
 motorSpeed motorSpeed1 = MOTOR_SLOW;
 
 const int motor1Limit2 = 4300;//motor2Factor*stepsPerRevolution;
 int motorPos2 = 0;
-motorSpeed motorSpeed2 = MOTOR_MEDIUM;
+motorSpeed motorSpeed2 = MOTOR_FAST;
 
-
-
+int resetting = 0;
+int commandsStop = 0;
 
 
 void setup()
@@ -64,6 +64,8 @@ void setup()
   resetMotor(2);
 
 }
+
+
 void loop()
 {
 
@@ -74,10 +76,19 @@ void loop()
     int com_avail = readCommandBuffer(commandBuffer, MAX_INPUT_LENGTH);
 
     if(com_avail){
+          commandsStop = 0;
           processCommand(commandBuffer);
+
     }
 
     fillBuffer();
+
+  }else{
+
+    if(!commandsStop)
+          Serial.println("*"); // signal end of command processing
+
+        commandsStop = 1;
 
   }
 
@@ -89,13 +100,13 @@ void fillBuffer(){
         if (!isBufferFull()) {
           char incomingByte = Serial.read();
           writeBuffer(incomingByte);
+
         }else{
           Serial.println("Buffer full");
           break;
         }
   }
 
-//  Serial.println("*"); // signal serial buffer is empty
 }
 
 
@@ -179,11 +190,12 @@ void processCommand(char* command) {
    char* cmd = tkns[0];
 
   if (strcmp(cmd, "CIRCLE") == 0) {
-    int center = motor1Limit2/2;
+    int center = (motor1Limit2 - 700)/2;
+    int ninety = motor1Limit1/2;
     goTogether(center, 0); // 0deg
-    goTogether(0, 450); //90deg
-    goTogether(center, 900); //180deg
-    goTogether(motor1Limit2, 450); //90deg
+    goTogether(0, ninety); //90deg
+    goTogether(center, motor1Limit1); //180deg
+    goTogether(motor1Limit2, ninety); //90deg
     goTogether(center, 0); // 0deg
 
 
@@ -194,8 +206,13 @@ void processCommand(char* command) {
        int r = atoi(tkns[1]);
        int theta_steps = atoi(tkns[2]);
 
-       goToAngleMotor1(theta_steps);
-       goToPositionMotor2(r);
+       if(strcmp(tkns[3], "M") == 0)
+          goTogether(r, theta_steps);
+       else{
+          goToAngleMotor1(theta_steps);
+          goToPositionMotor2(r);
+       }
+
 
 
        delay(2000);
@@ -235,6 +252,9 @@ void processCommand(char* command) {
       }else if (strcmp(cmd, "RESET") == 0) {
                resetMotor(1);
                resetMotor(2);
+
+      }else if (strcmp(cmd, "RESET_SYNC") == 0) {
+               resetMotorTogether();
 
       }else if (strcmp(cmd, "RESET_M") == 0) {
          int motor_idx = atoi(tkns[1]);
@@ -381,6 +401,13 @@ void resetMotor(int idx){
 
 }
 
+void resetMotorTogether(){
+  resetting = 1;
+  runTwoMotors(motor1Limit1, ANTICLOCKWISE, motor1Limit2, ANTICLOCKWISE);
+  resetting = 0;
+
+}
+
 void turnMotor1(int steps, dir d) {
   turnMotor(stepPin1, dirPin1, &motorPos1, motor1Limit1, steps, d, motorSpeed1, resetPin1, 0);
 }
@@ -402,11 +429,8 @@ void turnMotor(int stepPin, int dirPin, int *pos, int limit, int steps, dir d, i
 
 
 //  int delta_speed = 500;
-  Serial.print("OLD:");
-  Serial.println(*pos);
   int newPos = getNewPos(*pos, steps, d); // new position if moved step steps
-  Serial.print("NEW:");
-  Serial.println(newPos);
+
   if(!resetting  && (newPos > limit ||  newPos < 0)){
      Serial.print(newPos);
      Serial.println(": Motion our of limit");
@@ -454,23 +478,29 @@ void runTwoMotors(int stepsMotor1, dir d1, int stepsMotor2, dir d2) {
           maxDir = d1;
           minSteps = stepsMotor2;
           minDir = d2;
-          turnFnSmall = &turnMotor2;
-          turnFnBig = &turnMotor1;
+          turnFnSmall = resetting? &ResetMotor2:&turnMotor2;
+          turnFnBig = resetting? &ResetMotor1:&turnMotor1;
     }else{
           maxSteps = stepsMotor2;
           maxDir = d2;
           minSteps = stepsMotor1;
           minDir = d1;
-          turnFnSmall = &turnMotor1;
-          turnFnBig = &turnMotor2;
+          turnFnSmall = resetting? ResetMotor1 : &turnMotor1;
+          turnFnBig = resetting? ResetMotor2: &turnMotor2;
     }
 
     int bigSteps = maxSteps/minSteps;
     int bigLeft = maxSteps % minSteps;
 
+
     for (int i = 0; i < minSteps; i++) {
             turnFnSmall(1, minDir); // Function to step motor 1
-            turnFnBig(bigSteps, maxDir); // Function to step motor 2
+            if(bigLeft > 0){
+              turnFnBig(bigSteps + 1, maxDir); // Function to step motor 2
+              bigLeft--;
+            }else{
+              turnFnBig(bigSteps, maxDir);
+             }
     }
     if(bigLeft > 0)
       turnFnBig(bigLeft, maxDir);
