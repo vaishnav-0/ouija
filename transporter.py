@@ -1,7 +1,6 @@
 import time
 
 import serial
-from pygame.examples.video import answer
 
 from constants import LETTER_MAP
 
@@ -13,11 +12,11 @@ class Transporter:
         "spin": "SPIN"
     }
 
-    def __init__(self, port="COM3", baud=9600):
+    def __init__(self, port="COM3", baud=115200):
         self.serial = serial.Serial(port, baud, timeout=1)
 
     def write(self, text):
-        self.serial.write(text.encode())
+        self.serial.write(f"{text}\n".encode())
         self.serial.flush()
 
     def read_line(self):
@@ -45,7 +44,7 @@ class Transporter:
         text = text.upper()
 
         if text in LETTER_MAP:
-            return [LETTER_MAP[answer]]
+            return [LETTER_MAP[text]]
 
         return [LETTER_MAP[c] for c in text]
 
@@ -57,7 +56,7 @@ class Transporter:
 
 
 if __name__ == "__main__":
-    transporter = Transporter()
+    transporter = Transporter("COM4")
 
     while True:
         txt = input("Enter coords/text")
@@ -66,4 +65,4 @@ if __name__ == "__main__":
         elif txt.startswith("!"):
             transporter.write(txt[1:].upper())
         else:
-            transporter.write_as_coords(txt)
+            print("Nokki adikke")
