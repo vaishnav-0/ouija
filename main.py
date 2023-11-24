@@ -11,6 +11,8 @@ from mistral import Mistral
 
 ser: serial.Serial | None = None
 
+LETTER_DELAY = 10
+
 
 def send_to_serial(text):
     if ser is None:
@@ -45,6 +47,28 @@ def post_recording():
     # play background music
 
 
+def manual_mode():
+    pygame.mixer.music.unpause()
+    print("Manual mode, use Ctrl+C to exit.")
+    print("Listen to user's question and type the answer.")
+    while True:
+        try:
+            text = input("Enter text to send to board:")
+            coords = text_to_coords(text)
+
+            for coord in coords:
+                send_to_serial(",".join(map(str, coord)))
+                sleep(LETTER_DELAY)
+
+            send_to_serial("SPIN")
+
+        except Exception as e:
+            if isinstance(e, KeyboardInterrupt):
+                break
+
+            print(e)
+
+
 def main():
     global ser
 
@@ -70,8 +94,8 @@ def main():
 
         mistral = Mistral(ghost)
 
-        while True:
-            try:
+        try:
+            while True:
                 question = audio.get_transcript()
                 print("Question:", question)
                 answer = mistral(question)
@@ -80,18 +104,21 @@ def main():
 
                 for coord in coords:
                     send_to_serial(",".join(map(str, coord)))
-                    sleep(10)
+                    sleep(LETTER_DELAY)
 
-            except KeyboardInterrupt:
-                break
+        except KeyboardInterrupt or Exception as e:
+            if not isinstance(e, KeyboardInterrupt):
+                print(e)
 
         send_to_serial("CENTER")
 
-        print("Press Ctrl+C again to exit. Press any other key to continue.")
-        try:
-            input()
-        except KeyboardInterrupt or UnicodeError:
+        print("q to quit. m for manual mode any other key to continue.")
+        choice = input()
+
+        if choice == "q":
             break
+        elif choice == "m":
+            return manual_mode()
 
 
 if __name__ == '__main__':
