@@ -36,14 +36,14 @@ const int stepPin2 = 5;
 
 const int motor1Limit1 = 925;//.(int)(motor1Factor/2)*stepsPerRevolution;
 int motorPos1 = 0;
-motorSpeed motorSpeed1 = MOTOR_SLOW;
+motorSpeed motorSpeed1 = MOTOR_MEDIUM;
 
 const int motor1Limit2 = 4300;//motor2Factor*stepsPerRevolution;
 int motorPos2 = 0;
 motorSpeed motorSpeed2 = MOTOR_FAST;
 
 int resetting = 0;
-int commandsStop = 0;
+int goCommand = 0;
 
 
 void setup()
@@ -76,7 +76,6 @@ void loop()
     int com_avail = readCommandBuffer(commandBuffer, MAX_INPUT_LENGTH);
 
     if(com_avail){
-          commandsStop = 0;
           processCommand(commandBuffer);
 
     }
@@ -84,13 +83,12 @@ void loop()
     fillBuffer();
 
   }else{
+      if(goCommand){
+        Serial.println("*");
+        goCommand = 0;
+      }
 
-    if(!commandsStop)
-          Serial.println("*"); // signal end of command processing
-
-        commandsStop = 1;
-
-  }
+    }
 
 }
 
@@ -199,10 +197,11 @@ void processCommand(char* command) {
     goTogether(center, 0); // 0deg
 
 
-
   }
   //Not tested
   else if (strcmp(cmd, "GO") == 0) {
+
+       goCommand = 1;
        int r = atoi(tkns[1]);
        int theta_steps = atoi(tkns[2]);
 
@@ -402,6 +401,8 @@ void resetMotor(int idx){
 void resetMotorTogether(){
   resetting = 1;
   runTwoMotors(motor1Limit1, ANTICLOCKWISE, motor1Limit2, ANTICLOCKWISE);
+  motorPos1 = 0;
+  motorPos2 = 0;
   resetting = 0;
 
 }
