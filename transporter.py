@@ -21,8 +21,11 @@ class Transporter:
         if flush:
             self.serial.flush()
 
+        self.wait_for_char("*")
+
     def write_all(self, texts):
-        self.write("\n".join(texts))
+        for text in texts:
+            self.write(text)
 
     def read_line(self):
         return self.serial.readline().decode().strip()
@@ -59,7 +62,6 @@ class Transporter:
         to_write = [f"{self.COMMANDS['go']} {coord[0]} {coord[1]}" for coord in self._get_cords(text)]
 
         self.write_all(to_write)
-        self.wait_for_char("*")
 
 
 if __name__ == "__main__":

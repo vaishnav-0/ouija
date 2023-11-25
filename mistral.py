@@ -1,29 +1,42 @@
-from litellm import completion
+import json
+
+import requests
 
 from constants import BASE_PROMPT
 
 
 class Mistral:
-    def __init__(self, ghost, model="ollama/mistral:7b-instruct"):
+    def __init__(self, ghost):
         with open(ghost) as f:
             self.system_prompt = f.read()
             self.system_prompt += BASE_PROMPT
 
-        self.model = model
+        self.url = 'http://localhost:1234/v1/chat/completions'
+        self.headers = {'Content-Type': 'application/json'}
+        self.data = {
+            "messages": [],
+            "temperature": 0.7,
+            "max_tokens": -1,
+            "stream": False
+        }
+
         self.messages = [
             {"content": self.system_prompt, "role": "system"}
         ]
 
+    def _api_call(self):
+        data = self.data
+        data["messages"] = self.messages
+        response = requests.post(self.url, headers=self.headers, data=json.dumps(data))
+
+        return response.json()["choices"][0]["message"]
+
     def __call__(self, question, **kwargs):
         self.messages.append({"content": question, "role": "user"})
-        answer = completion(
-            model=self.model,
-            messages=self.messages,
-            api_base="http://localhost:11434"
-        )
+        answer = self._api_call()
 
-        text = answer["choices"][0].message.content.split("\n")[0]
-        agent = answer["choices"][0].message.role
+        text = answer["content"].split("\n")[0]
+        agent = answer["role"]
 
         if ":" in text:
             text = text.split(":")[-1]
