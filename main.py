@@ -1,5 +1,6 @@
 import glob
 import random
+import time
 
 import pygame
 
@@ -7,18 +8,18 @@ from audio import Audio
 from mistral import Mistral
 from transporter import Transporter
 
-transporter = Transporter("COM3")
+transporter = Transporter("COM4")
 
 
 def pre_recording():
     pygame.mixer.music.pause()
-    transporter.write(transporter.COMMANDS["spin"])
+    # transporter.write(transporter.COMMANDS["spin"])
     # Stop background music
 
 
 def post_recording():
     pygame.mixer.music.unpause()
-    transporter.write_as_coords("CENTER")
+    transporter.write(transporter.COMMANDS["reset"])
 
 
 def manual_mode():
@@ -38,10 +39,21 @@ def manual_mode():
             print(e)
 
 
+def play_sound(sound):
+    additional_channel = pygame.mixer.find_channel()
+    if additional_channel:
+        additional_channel.play(sound)
+        while additional_channel.get_busy():
+            time.sleep(0.1)
+
+
 def main():
     pygame.mixer.init()
-    pygame.mixer.music.load("bg.mp3")
+    pygame.mixer.music.load("audio/bg.mp3")
     pygame.mixer.music.play(-1)
+
+    starter = pygame.mixer.Sound("audio/start.mp3")
+    next_question = pygame.mixer.Sound("audio/next_question.mp3")
 
     audio = Audio(silent_frames=2)
 
@@ -54,9 +66,11 @@ def main():
         ghost = random.choice(ghosts)
 
         mistral = Mistral(ghost)
+        play_sound(starter)
 
         try:
             while True:
+                play_sound(next_question)
                 question = audio.get_transcript()
                 print("Question:", question)
                 answer = mistral(question)
