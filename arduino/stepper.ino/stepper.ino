@@ -36,14 +36,14 @@ const int stepPin2 = 5;
 
 const int motor1Limit1 = 925;//.(int)(motor1Factor/2)*stepsPerRevolution;
 int motorPos1 = 0;
-motorSpeed motorSpeed1 = MOTOR_MEDIUM;
+motorSpeed motorSpeed1 = MOTOR_SLOW;
 
 const int motor1Limit2 = 4300;//motor2Factor*stepsPerRevolution;
 int motorPos2 = 0;
-motorSpeed motorSpeed2 = MOTOR_FAST;
+motorSpeed motorSpeed2 = MOTOR_MEDIUM;
 
 int resetting = 0;
-int goCommand = 0;
+int commandStop = 0;
 
 
 void setup()
@@ -76,6 +76,7 @@ void loop()
     int com_avail = readCommandBuffer(commandBuffer, MAX_INPUT_LENGTH);
 
     if(com_avail){
+          commandStop = 1;
           processCommand(commandBuffer);
 
     }
@@ -83,13 +84,37 @@ void loop()
     fillBuffer();
 
   }else{
-      if(goCommand){
+      if(commandStop){
         Serial.println("*");
-        goCommand = 0;
+        commandStop = 0;
       }
 
     }
 
+}
+
+
+
+void readSerialData(char *buffer, int maxLength) {
+  int index = 0;
+  char incomingByte;
+
+  // Read each byte until we get a newline or reach the maximum length
+  while (Serial.available() > 0 && index < maxLength - 1) {
+    incomingByte = Serial.read();
+
+    // Check for newline character (depends on your serial terminal settings)
+    if (incomingByte == '\n' || incomingByte == '\r') {
+      break;
+    }
+
+    // Add the incoming byte to our buffer
+    buffer[index] = incomingByte;
+    index++;
+  }
+
+  // Null-terminate the buffer to create a valid string
+  buffer[index] = '\0';
 }
 
 
@@ -201,7 +226,6 @@ void processCommand(char* command) {
   //Not tested
   else if (strcmp(cmd, "GO") == 0) {
 
-       goCommand = 1;
        int r = atoi(tkns[1]);
        int theta_steps = atoi(tkns[2]);
 
