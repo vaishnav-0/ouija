@@ -70,26 +70,14 @@ void loop()
 {
 
 
-   fillBuffer();
+  char inputData[MAX_INPUT_LENGTH]; // Array to store incoming data
 
-   if (isDataAvailable()) {
-    int com_avail = readCommandBuffer(commandBuffer, MAX_INPUT_LENGTH);
-
-    if(com_avail){
-          commandStop = 1;
-          processCommand(commandBuffer);
-
-    }
-
-    fillBuffer();
-
-  }else{
-      if(commandStop){
-        Serial.println("*");
-        commandStop = 0;
-      }
-
-    }
+  if (Serial.available() > 0) {
+    readSerialData(inputData, MAX_INPUT_LENGTH);
+    processCommand(inputData);
+    Serial.println("*");
+  }
+   
 
 }
 
